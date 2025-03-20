@@ -1,0 +1,194 @@
+checkpoint:
+  every_n_train_steps: ${trainer.max_steps}
+  save_last: true
+  save_top_k: -1
+data:
+  azimuth_range:
+  - -180
+  - 180
+  azimuth_range_back:
+  - -135
+  - -45
+  azimuth_range_front:
+  - 60
+  - 120
+  back_azimuth_range:
+  - -180
+  - 0
+  back_camera_distance_range:
+  - 0.6
+  - 0.8
+  back_elevation_range:
+  - -30
+  - 30
+  back_end_step: 3600
+  back_offset: 0.65
+  back_prob: 0.2
+  back_start_step: 1200
+  batch_size: 4
+  camera_distance_range:
+  - 1.3
+  - 1.7
+  elevation_range:
+  - -30
+  - 30
+  enable_near_back_poses: true
+  enable_near_head_poses: true
+  eval_camera_distance: 2.0
+  eval_camera_distance_head: 0.6
+  eval_elevation_deg: 5
+  eval_fovy_deg: 70
+  eval_height: 1024
+  eval_width: 1024
+  fovy_range:
+  - 40
+  - 70
+  head_azimuth_range:
+  - 0
+  - 180
+  head_camera_distance_range:
+  - 0.4
+  - 0.6
+  head_elevation_range:
+  - -30
+  - 30
+  head_end_step: 3600
+  head_offset: 0.65
+  head_prob: 0.25
+  head_start_step: 1200
+  height: 1024
+  light_sample_strategy: dreamfusion3dgs
+  width: 1024
+data_type: random-camera-datamodule
+exp_root_dir: /data/vdc/tangzichen/hgs
+name: exps
+seed: 42
+system:
+  apose: true
+  bg_white: false
+  config_path: /home/tangzichen.tzc/GaussianIP/configs/exp.yaml
+  densify_prune_end_step: 1700
+  densify_prune_interval: 500
+  densify_prune_min_opacity: 0.04
+  densify_prune_screen_size_threshold: 20
+  densify_prune_start_step: 200
+  densify_prune_world_size_threshold: 0.015
+  disable_hand_densification: false
+  gender: neutral
+  guidance:
+    batch_size: 4
+    enable_memory_efficient_attention: true
+    grad_clip:
+    - 0
+    - 1.5
+    - 2.0
+    - 1000
+    grad_clip_pixel: true
+    grad_clip_threshold: 1.0
+    guidance_rescale: 0.75
+    guidance_scale: 7.5
+    image_encoder_faceid_path: /data/vdc/tangzichen/laion/CLIP-ViT-H-14-laion2B-s32B-b79K
+    image_encoder_path: /data/vdc/tangzichen/IP-Adapter/models/image_encoder
+    ip_ckpt_faceid_v1_path: /data/vdc/tangzichen/IP-Adapter/models/ip-adapter-faceid-plus_sd15.bin
+    ip_ckpt_faceid_v2_path: /data/vdc/tangzichen/IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin
+    ip_ckpt_path: /data/vdc/tangzichen/IP-Adapter/models/ip-adapter-plus-face_sd15.bin
+    ipa_faceid_s_scale: 0.4
+    ipa_faceid_scale: 0.5
+    ipa_scale: 0.6
+    irr_pil_image_path: /home/tangzichen.tzc/GaussianIP/assets/irr_woman.png
+    lw_depth: 0.5
+    negative_prompt: cloned face, multi face, bad face, poorly drawn face, duplicate
+      face, cropped, out of frame, extra fingers, deformed, blurry, bad proportions,
+      disfigured, fused fingers, long neck
+    negative_prompt_faceid: cloned face, multi face, bad face, poorly drawn face,
+      duplicate face, cropped, out of frame, extra fingers, deformed, blurry, bad
+      proportions, disfigured, fused fingers, long neck
+    null_prompt: ''
+    original_size: 1024
+    pil_image_faceid_path: /home/tangzichen.tzc/GaussianIP/assets/audrey.png
+    pose_controlnet_path: /data/vdc/tangzichen/lllyasviel/control_v11p_sd15_openpose
+    pretrained_realistic_model_name_or_path: /data/vdc/tangzichen/SG161222/Realistic_Vision_V4.0_noVAE
+    pretrained_sd_model_name_or_path: /data/vdc/tangzichen/runwayml/stable-diffusion-v1-5
+    prompt: Audrey Hepburn wearing a tailored blazer, a shirt underneath, straight-cut
+      trousers, and low-heeled shoes.
+    target_size: 1024
+    use_anpg: true
+    use_ipa_faceid: true
+    use_pose_controlnet: true
+    vae_path: /data/vdc/tangzichen/stabilityai/sd-vae-ft-mse
+    view_dependent_prompting: true
+    weighting_strategy: sds
+  guidance_type: ipa-guidance
+  head_offset: 0.65
+  height: 512
+  ipa_ori: true
+  lambda_l1: 10
+  lambda_lpips: 15
+  loggers:
+    wandb:
+      enable: false
+      name: None
+      project: threestudio
+  loss:
+    lambda_opaque: 0
+    lambda_scale: 1.0
+    lambda_sds: 1.0
+    lambda_sparsity: 1.0
+    scale_tau: 2
+  max_grad: 0.0002
+  optimizer:
+    args:
+      betas:
+      - 0.9
+      - 0.99
+      eps: 1.0e-15
+      lr: 0.001
+    name: Adam
+  prompt_processor:
+    head_offset: 0.65
+    negative_prompt: cloned face, multi face, bad face, poorly drawn face, duplicate
+      face, cropped, out of frame, extra fingers, deformed, blurry, bad proportions,
+      disfigured, fused fingers, long neck
+    negative_prompt_faceid: cloned face, multi face, bad face, poorly drawn face,
+      duplicate face, cropped, out of frame, extra fingers, deformed, blurry, bad
+      proportions, disfigured, fused fingers, long neck
+    null_prompt: ''
+    pretrained_realistic_model_name_or_path: /data/vdc/tangzichen/SG161222/Realistic_Vision_V4.0_noVAE
+    pretrained_sd_model_name_or_path: /data/vdc/tangzichen/runwayml/stable-diffusion-v1-5
+    prompt: Audrey Hepburn wearing a tailored blazer, a shirt underneath, straight-cut
+      trousers, and low-heeled shoes.
+    use_ipa_faceid: true
+    use_perp_neg: false
+  prompt_processor_type: ipa-prompt-processor
+  prune_only_end_step: 1900
+  prune_only_interval: 300
+  prune_only_start_step: 1700
+  prune_opacity_threshold: 0.04
+  prune_screen_size_threshold: 20
+  prune_world_size_threshold: 0.015
+  pts_num: 100000
+  radius: ${data.eval_camera_distance}
+  refine_camera_distance: 1.5
+  refine_elevation: 17
+  refine_fovy_deg: 70
+  refine_n_views: 32
+  refine_num_bboxes: 3
+  refine_patch_size: 200
+  refine_start_step: 2400
+  refine_train_bs: 4
+  log_path: /home/tangzichen.tzc/GaussianIP/logs
+  cur_time: ''
+  sh_degree: 0
+  smplx_path: /data/vdc/tangzichen/
+  stage: stage1
+  use_pose_controlnet: true
+  width: 512
+system_type: gaussianip-system
+tag: ${rmspace:${system.prompt_processor.prompt},_}
+trainer:
+  enable_progress_bar: true
+  log_every_n_steps: 1
+  max_steps: 2400
+  num_sanity_val_steps: 0
+  precision: 16-mixed
+  val_check_interval: 100
