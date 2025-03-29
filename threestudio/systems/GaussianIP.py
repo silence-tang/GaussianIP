@@ -23,7 +23,7 @@ from threestudio.utils.ops import binary_cross_entropy
 from threestudio.utils.poser import Skeleton
 from threestudio.utils.typing import *
 
-from gaussiansplatting.gaussian_renderer import render, render_with_samller_scale
+from gaussiansplatting.gaussian_renderer import render
 from gaussiansplatting.arguments import PipelineParams, OptimizationParams
 from gaussiansplatting.scene import GaussianModel
 from gaussiansplatting.scene.cameras import Camera
@@ -154,7 +154,7 @@ class GaussianIP(BaseLift3DSystem):
         for id in range(batch['c2w'].shape[0]):
             viewpoint_cam  = Camera(c2w = batch['c2w'][id], FoVy = batch['fovy'][id], height = batch['height'], width = batch['width'])
             if phase == 'val' or phase == 'test':
-                render_pkg = render_with_samller_scale(viewpoint_cam, self.gaussian, self.pipe, renderbackground)
+                render_pkg = render(viewpoint_cam, self.gaussian, self.pipe, renderbackground)
             else:
                 render_pkg = render(viewpoint_cam, self.gaussian, self.pipe, renderbackground)
 
