@@ -23,25 +23,16 @@ import yaml
 from insightface.app import FaceAnalysis
 from insightface.utils import face_align
 
-# args
-# pretrained_sd_model_name_or_path: str = "runwayml/stable-diffusion-v1-5"
-# pretrained_realistic_model_name_or_path: str = "SG161222/Realistic_Vision_V4.0_noVAE"
-# vae_path: str = "stabilityai/sd-vae-ft-mse"
-# image_encoder_path: str = "IP-Adapter/models/image_encoder"
-# image_encoder_faceid_path: str = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
-# ip_ckpt_path: str = "IP-Adapter/models/ip-adapter-plus-face_sd15.bin"
-# ip_ckpt_faceid_v1_path: str = "IP-Adapter/models/ip-adapter-faceid_sd15.bin"
-# ip_ckpt_faceid_v2_path: str = "IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin"
-# pose_controlnet_path: str = "lllyasviel/control_v11p_sd15_openpose"
-pretrained_sd_model_name_or_path: str = "/data/vdc/tangzichen/runwayml/stable-diffusion-v1-5"
-pretrained_realistic_model_name_or_path: str = "/data/vdc/tangzichen/SG161222/Realistic_Vision_V4.0_noVAE"
-vae_path: str = "/data/vdc/tangzichen/stabilityai/sd-vae-ft-mse"
-image_encoder_path: str = "/data/vdc/tangzichen/IP-Adapter/models/image_encoder"
-image_encoder_faceid_path: str = "/data/vdc/tangzichen/laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
-ip_ckpt_path: str = "/data/vdc/tangzichen/IP-Adapter/models/ip-adapter-plus-face_sd15.bin"
-ip_ckpt_faceid_v1_path: str = "/data/vdc/tangzichen/IP-Adapter/models/ip-adapter-faceid_sd15.bin"
-ip_ckpt_faceid_v2_path: str = "/data/vdc/tangzichen/IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin"
-pose_controlnet_path: str = "/data/vdc/tangzichen/lllyasviel/control_v11p_sd15_openpose"
+# model args
+pretrained_sd_model_name_or_path: str = "/path/to/runwayml/stable-diffusion-v1-5"
+pretrained_realistic_model_name_or_path: str = "/path/to/SG161222/Realistic_Vision_V4.0_noVAE"
+vae_path: str = "/path/to/stabilityai/sd-vae-ft-mse"
+image_encoder_path: str = "/path/to/IP-Adapter/models/image_encoder"
+image_encoder_faceid_path: str = "/path/to/laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+ip_ckpt_path: str = "/path/to/IP-Adapter/models/ip-adapter-plus-face_sd15.bin"
+ip_ckpt_faceid_v1_path: str = "/path/to/IP-Adapter/models/ip-adapter-faceid_sd15.bin"
+ip_ckpt_faceid_v2_path: str = "/path/to/IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin"
+pose_controlnet_path: str = "/path/to/lllyasviel/control_v11p_sd15_openpose"
 use_ipa_faceid: bool = True
 use_pose_controlnet: bool = True
 
@@ -240,30 +231,17 @@ def refine_rgb(rgb, control_img, prompt):
 
 
 def save_image(filename, tensor):
-    """
-    将shape为[H, W, C]的tensor保存为图像文件。
-    
-    参数:
-    - tensor: PyTorch tensor，图像数据，值应该在[0, 1]之间
-    - filename: str，保存的文件名
-    """
-    # 确保输入的是tensor，并将其转换为numpy数组
     if isinstance(tensor, torch.Tensor):
         image_np = tensor.cpu().detach().numpy()
     else:
         image_np = tensor
 
-    # 对于形状[H, W, C]的tensor，C应为3（RGB图像）
-    assert image_np.shape[2] == 3, "通道数必须为3 (RGB图像)"
-
-    # 将图像数据从float转为uint8 [0, 255]
-    image_np = np.clip(image_np, 0, 1)  # 确保值域在[0, 1]
+    assert image_np.shape[2] == 3, "channels must be 3 (RGB image)"
+    
+    image_np = np.clip(image_np, 0, 1)
     image_np = (image_np * 255).astype(np.uint8)
-
-    # 创建图像
+    
     img = Image.fromarray(image_np)
-
-    # 保存图像
     img.save(filename)
 
 
