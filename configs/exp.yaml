@@ -34,7 +34,7 @@ data:
   - 30
   enable_near_back_poses: true
   enable_near_head_poses: true
-  eval_camera_distance: 2.0
+  eval_camera_distance: 1.8
   eval_camera_distance_head: 0.6
   eval_elevation_deg: 5
   eval_fovy_deg: 70
