@@ -23,13 +23,13 @@ from threestudio.utils.ops import binary_cross_entropy
 from threestudio.utils.poser import Skeleton
 from threestudio.utils.typing import *
 
-from gaussiansplatting.gaussian_renderer import render
+from gaussiansplatting.gaussian_renderer import render, render_with_smaller_scale
 from gaussiansplatting.arguments import PipelineParams, OptimizationParams
 from gaussiansplatting.scene import GaussianModel
 from gaussiansplatting.scene.cameras import Camera
 from gaussiansplatting.scene.gaussian_model import BasicPointCloud
 
-    
+
 
 @threestudio.register("gaussianip-system")
 class GaussianIP(BaseLift3DSystem):
@@ -154,7 +154,7 @@ class GaussianIP(BaseLift3DSystem):
         for id in range(batch['c2w'].shape[0]):
             viewpoint_cam  = Camera(c2w = batch['c2w'][id], FoVy = batch['fovy'][id], height = batch['height'], width = batch['width'])
             if phase == 'val' or phase == 'test':
-                render_pkg = render(viewpoint_cam, self.gaussian, self.pipe, renderbackground)
+                render_pkg = render_with_smaller_scale(viewpoint_cam, self.gaussian, self.pipe, renderbackground)
             else:
                 render_pkg = render(viewpoint_cam, self.gaussian, self.pipe, renderbackground)
 
@@ -512,6 +512,7 @@ class GaussianIP(BaseLift3DSystem):
             self.save_image(f"it{self.true_global_step}-{batch['index'][0]}_rgb.png", out["comp_rgb"][0])
         else:
             self.save_image(f"it{self.true_global_step + self.refine_start_step}-{batch['index'][0]}_rgb.png", out["comp_rgb"][0])
+
 
     def on_validation_epoch_end(self):
         pass
