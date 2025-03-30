@@ -87,8 +87,11 @@ def main(args, extras) -> None:
     
     # Define save directory
     system.set_save_dir(os.path.join(cfg.trial_dir, "save"))
-    with open('log.txt', 'w') as file:  # 使用 'a' 模式来追加内容
-        file.write(cfg.trial_dir)
+
+    # Create log dir for each experiment
+    if not os.path.exists(os.path.join('logs', args.cur_time, 'log.txt')):
+        with open(os.path.join('logs', args.cur_time, 'log.txt'), 'w') as file:
+            file.write(cfg.trial_dir)
 
     if args.gradio:
         fh = logging.FileHandler(os.path.join(cfg.trial_dir, "logs"))
@@ -170,6 +173,7 @@ def main(args, extras) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/exp.yaml", help="Path to config file")
+    parser.add_argument("--cur_time", required=True)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--train", action="store_true")
     group.add_argument("--validate", action="store_true")
