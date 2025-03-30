@@ -23,16 +23,25 @@ import yaml
 from insightface.app import FaceAnalysis
 from insightface.utils import face_align
 
-# model args
-pretrained_sd_model_name_or_path: str = "/path/to/runwayml/stable-diffusion-v1-5"
-pretrained_realistic_model_name_or_path: str = "/path/to/SG161222/Realistic_Vision_V4.0_noVAE"
-vae_path: str = "/path/to/stabilityai/sd-vae-ft-mse"
-image_encoder_path: str = "/path/to/IP-Adapter/models/image_encoder"
-image_encoder_faceid_path: str = "/path/to/laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
-ip_ckpt_path: str = "/path/to/IP-Adapter/models/ip-adapter-plus-face_sd15.bin"
-ip_ckpt_faceid_v1_path: str = "/path/to/IP-Adapter/models/ip-adapter-faceid_sd15.bin"
-ip_ckpt_faceid_v2_path: str = "/path/to/IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin"
-pose_controlnet_path: str = "/path/to/lllyasviel/control_v11p_sd15_openpose"
+# args
+# pretrained_sd_model_name_or_path: str = "runwayml/stable-diffusion-v1-5"
+# pretrained_realistic_model_name_or_path: str = "SG161222/Realistic_Vision_V4.0_noVAE"
+# vae_path: str = "stabilityai/sd-vae-ft-mse"
+# image_encoder_path: str = "IP-Adapter/models/image_encoder"
+# image_encoder_faceid_path: str = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+# ip_ckpt_path: str = "IP-Adapter/models/ip-adapter-plus-face_sd15.bin"
+# ip_ckpt_faceid_v1_path: str = "IP-Adapter/models/ip-adapter-faceid_sd15.bin"
+# ip_ckpt_faceid_v2_path: str = "IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin"
+# pose_controlnet_path: str = "lllyasviel/control_v11p_sd15_openpose"
+pretrained_sd_model_name_or_path: str = "/data/vdc/tangzichen/runwayml/stable-diffusion-v1-5"
+pretrained_realistic_model_name_or_path: str = "/data/vdc/tangzichen/SG161222/Realistic_Vision_V4.0_noVAE"
+vae_path: str = "/data/vdc/tangzichen/stabilityai/sd-vae-ft-mse"
+image_encoder_path: str = "/data/vdc/tangzichen/IP-Adapter/models/image_encoder"
+image_encoder_faceid_path: str = "/data/vdc/tangzichen/laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+ip_ckpt_path: str = "/data/vdc/tangzichen/IP-Adapter/models/ip-adapter-plus-face_sd15.bin"
+ip_ckpt_faceid_v1_path: str = "/data/vdc/tangzichen/IP-Adapter/models/ip-adapter-faceid_sd15.bin"
+ip_ckpt_faceid_v2_path: str = "/data/vdc/tangzichen/IP-Adapter/models/ip-adapter-faceid-plusv2_sd15.bin"
+pose_controlnet_path: str = "/data/vdc/tangzichen/lllyasviel/control_v11p_sd15_openpose"
 use_ipa_faceid: bool = True
 use_pose_controlnet: bool = True
 
@@ -231,24 +240,38 @@ def refine_rgb(rgb, control_img, prompt):
 
 
 def save_image(filename, tensor):
+    """
+    将shape为[H, W, C]的tensor保存为图像文件。
+    
+    参数:
+    - tensor: PyTorch tensor，图像数据，值应该在[0, 1]之间
+    - filename: str，保存的文件名
+    """
+    # 确保输入的是tensor，并将其转换为numpy数组
     if isinstance(tensor, torch.Tensor):
         image_np = tensor.cpu().detach().numpy()
     else:
         image_np = tensor
 
-    assert image_np.shape[2] == 3, "channels must be 3 (RGB image)"
-    
-    image_np = np.clip(image_np, 0, 1)
+    # 对于形状[H, W, C]的tensor，C应为3（RGB图像）
+    assert image_np.shape[2] == 3, "通道数必须为3 (RGB图像)"
+
+    # 将图像数据从float转为uint8 [0, 255]
+    image_np = np.clip(image_np, 0, 1)  # 确保值域在[0, 1]
     image_np = (image_np * 255).astype(np.uint8)
-    
+
+    # 创建图像
     img = Image.fromarray(image_np)
+
+    # 保存图像
     img.save(filename)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path", type=str, required=True)
-    parser.add_argument("--root_path", type=str, required=True)
+    parser.add_argument("--cur_time", type=str, required=True)
+    parser.add_argument("--log_path", type=str, required=True)
     parser.add_argument("--pil_image_path", type=str, required=True)
     parser.add_argument("--prompt", type=str, required=True)
 
@@ -267,7 +290,7 @@ if __name__ == "__main__":
     pos_face_image = face_align.norm_crop(pos_image, landmark=pos_faces[0].kps, image_size=224) # you can also segment the face
 
     # load data
-    before_refine_data = torch.load(os.path.join(args.root_path, 'before_refine.pth'))
+    before_refine_data = torch.load(os.path.join(args.log_path, args.cur_time, 'before_refine.pth'))
     rgb = before_refine_data['images'].to(device)
     control_img = before_refine_data['control_images'].to(device)
 
@@ -276,7 +299,7 @@ if __name__ == "__main__":
 
     # save refined images
     # get trail_dir
-    with open(os.path.join(args.root_path, 'log.txt'), 'r') as file:
+    with open(os.path.join(args.log_path, args.cur_time, 'log.txt'), 'r') as file:
         trail_dir = file.readline()
 
     for i, view_idx in enumerate(view_idx_all):
@@ -289,7 +312,7 @@ if __name__ == "__main__":
     refined_rgbs_small = F.interpolate(refined_rgbs, scale_factor=0.5, mode="bilinear", align_corners=False)
    
     # save refined images data for the following 3d reconstruction process
-    torch.save({'refined_rgbs_small': refined_rgbs_small.detach().cpu()}, os.path.join(args.root_path, 'after_refine.pth'))
+    torch.save({'refined_rgbs_small': refined_rgbs_small.detach().cpu()}, os.path.join(args.log_path, args.cur_time, 'after_refine.pth'))
 
     # change the max_steps in config.yaml from 2400 to 3600
     config_file_path = args.config_path
