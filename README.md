@@ -45,7 +45,7 @@ Please prepare below pre-trained models before the training process:
 
 * **ip-adapter-faceid-plusv2_sd15.bin**: Download ip-adapter model from https://huggingface.co/h94/IP-Adapter-FaceID.
 
-After the above models are downloaded, please specify their paths in `configs/exp.yaml` properly.
+After the above models are downloaded, please specify their paths in `configs/exp.yaml` and `threestudio/models/guidance/refine.py` properly.
 
 ## Train
 First, specify `TEXT_PROMPT` and `IMAGE_PROMPT` in run.sh.
