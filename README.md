@@ -101,7 +101,7 @@ python animation.py --ply <path/to/ply> --motion <path/to/motion> --play --rotat
 This work is inspired by and builds upon numerous outstanding research efforts and open-source projects, including [Threestudio](https://github.com/threestudio-project/threestudio), [3DGS](https://github.com/graphdeco-inria/gaussian-splatting), [diff-gaussian-rasterization](https://github.com/graphdeco-inria/diff-gaussian-rasterization), [HumanGaussian](https://github.com/alvinliu0/HumanGaussian/), [IP-Adapter](https://github.com/tencent-ailab/IP-Adapter/). We are deeply grateful to all the authors for their contributions and for sharing their work openly!
 
 ## Notes
-We train on the resolution of 1024x1024 with a batch size of 4. The whole optimization process takes around 40 minutes on a single NVIDIA V100 (32GB) GPU.
+We train on the resolution of 1024x1024 with a batch size of 4. The whole optimization process takes around 40 minutes on a single NVIDIA V100 (32GB) GPU or a single NVIDIA RTX 3090 (24GB) GPU.
 
 ## Citation
 If you find this repository/work helpful in your research, welcome to cite the paper and give a star.
