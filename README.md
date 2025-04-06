@@ -1,4 +1,4 @@
-# HumanGaussian: Text-Driven 3D Human Generation with Gaussian Splatting
+# GaussianIP: Identity-Preserving Realistic 3D Human Generation via Human-Centric Diffusion Prior
 
 [Zichen Tang](https://github.com/silence-tang)<sup>1</sup>, [Yuan Yao]()<sup>2</sup>, [Miaomiao Cui]()<sup>2</sup>, [Liefeng Bo](https://scholar.google.com/citations?user=FJwtMf0AAAAJ&hl=en)<sup>2</sup>, [Hongyu Yang](https://scholar.google.com/citations?user=dnbjaWIAAAAJ)<sup>1</sup>.  
 <sup>1</sup>Beihang University&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<sup>2</sup>Alibaba Group
