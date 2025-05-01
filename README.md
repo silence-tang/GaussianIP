@@ -33,7 +33,7 @@ The image prompts that are used for qualitative/ablation visual results demonstr
 ## Pretrained Models
 Please prepare below pre-trained models before the training process:
 
-* **SMPL-X**: Download SMPL-X model from https://download.is.tue.mpg.de/download.php?domain=smplx&sfile=models_smplx_v1_1.zip, unzip and place smpl under `/path/to/GaussianIP`.
+* **SMPL-X**: Download SMPL-X model from https://download.is.tue.mpg.de/download.php?domain=smplx&sfile=models_smplx_v1_1.zip, unzip and place smpl under `/path/to/smplx`.
 
 * **stabilityai/sd-vae-ft-mse**: Download VAE model from https://huggingface.co/stabilityai/sd-vae-ft-mse.
 
