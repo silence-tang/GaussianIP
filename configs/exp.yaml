@@ -179,7 +179,7 @@ system:
   log_path: /path/to/GaussianIP/logs
   cur_time: ''
   sh_degree: 0
-  smplx_path: /path/to/GaussianIP
+  smplx_path: /path/to/smplx
   stage: stage1
   use_pose_controlnet: true
   width: 512
