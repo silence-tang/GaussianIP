@@ -112,9 +112,10 @@ class Skeleton:
             "left_ear",
         ]
 
-        # homogeneous
+        # homogeneous 齐次坐标
         self.points3D = np.concatenate([self.points3D, np.ones_like(self.points3D[:, :1])], axis=1)  # [18, 4]
 
+        # lines [17, 2] 是pose的关键点之间的连线吗？
         self.lines = np.array(
             [
                 [0, 1],
@@ -177,7 +178,7 @@ class Skeleton:
         self.body_pose[1, 1] = -0.2
         self.body_pose[1, 2] = -0.1
 
-        """ SMPLX body_pose definition
+        """ SMPLX body_pose definition 21个关节关键点
         0: 'left_hip',#'L_Hip', XYZ -> (-X)(-Y)Z, 后外高 -> 前里高 (3) XYZ
         1: 'right_hip',#'R_Hip', (4) XYZ -> (-X)(-Y)Z, 后里低 -> 前外低 (4) XYZ
         2: 'spine1',#'Spine1', (-X)Y(-Z) -> (0) XYZ
@@ -207,7 +208,7 @@ class Skeleton:
         index, middle, pinky, ring, thumb; each with 3 joints.
         """
 
-        # gaussian model
+        # NOTE: gaussian model
         self.gs = Renderer(sh_degree=0, white_background=False)
         self.gs.gaussians.load_ply(opt.ply)
 
@@ -291,8 +292,9 @@ class Skeleton:
         # betas = torch.randn([1, self.smplx_model.num_betas], dtype=torch.float32)
         # expression = torch.randn([1, self.smplx_model.num_expression_coeffs], dtype=torch.float32)
         
+        # samplx_output是posed的smplx
         smplx_output = self.smplx_model(
-            body_pose=torch.tensor(self.body_pose, dtype=torch.float32).unsqueeze(0),
+            body_pose=torch.tensor(self.body_pose, dtype=torch.float32).unsqueeze(0),              # 由pose_seq中的某个pose给出
             left_hand_pose=torch.tensor(self.left_hand_pose, dtype=torch.float32).unsqueeze(0),    # 0 pose
             right_hand_pose=torch.tensor(self.right_hand_pose, dtype=torch.float32).unsqueeze(0),  # 0 pose
             betas=betas,            # none
@@ -325,7 +327,7 @@ class Skeleton:
 
         self.scale(-10)  # rescale
 
-        # NOTE: update gaussian location
+        # update gaussian location
         if self.mapping_face is None:
             import cubvh
 
@@ -475,7 +477,7 @@ class GUI:
         self.cam = OrbitCamera(opt.W, opt.H, r=opt.radius, fovy=opt.fovy)
 
         self.skel = Skeleton(opt)
-        self.glctx = dr.RasterizeCudaContext()
+        # self.glctx = dr.RasterizeCudaContext()
 
         self.render_buffer = np.zeros((self.W, self.H, 3), dtype=np.float32)
         self.need_update = True  # camera moved, should reset accumulation
@@ -529,384 +531,69 @@ class GUI:
             #     dpg.set_value("_texture", self.render_buffer)
 
         if self.playing:
+            # 加载当前的body pose
             self.skel.body_pose = np.array(self.skel.motion_seq[self.seq_id % len(self.skel.motion_seq)])
             self.seq_id += 1
+            # 然后再load_smplx中将高斯转换到当前pose的位置上
             self.skel.load_smplx(self.opt.smplx_path)
             self.need_update = True
 
-    def render_mesh_normal(self, mvp, H, W, vertices, faces):
-        mvp = torch.from_numpy(mvp.astype(np.float32)).cuda()
-        vertices = torch.from_numpy(vertices.astype(np.float32)).cuda()
-        faces = torch.from_numpy(faces.astype(np.int32)).cuda()
-
-        vertices_clip = (
-            torch.matmul(
-                F.pad(vertices, pad=(0, 1), mode="constant", value=1.0),
-                torch.transpose(mvp, 0, 1),
-            )
-            .float()
-            .unsqueeze(0)
-        )  # [1, N, 4]
-        rast, _ = dr.rasterize(self.glctx, vertices_clip, faces, (H, W))
-
-        i0, i1, i2 = faces[:, 0].long(), faces[:, 1].long(), faces[:, 2].long()
-        v0, v1, v2 = vertices[i0, :], vertices[i1, :], vertices[i2, :]
-
-        face_normals = torch.cross(v1 - v0, v2 - v0)
-
-        # Splat face normals to vertices
-        vn = torch.zeros_like(vertices)
-        vn.scatter_add_(0, i0[:, None].repeat(1, 3), face_normals)
-        vn.scatter_add_(0, i1[:, None].repeat(1, 3), face_normals)
-        vn.scatter_add_(0, i2[:, None].repeat(1, 3), face_normals)
-
-        # Normalize, replace zero (degenerated) normals with some default value
-        vn = torch.where(
-            dot(vn, vn) > 1e-20,
-            vn,
-            torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32, device=vn.device),
-        )
-        vn = safe_normalize(vn)
-
-        normal, _ = dr.interpolate(vn.unsqueeze(0).contiguous(), rast, faces)
-        normal = safe_normalize(normal)
-
-        normal_image = (normal[0] + 1) / 2
-        normal_image = torch.where(
-            rast[..., 3:] > 0, normal_image, torch.tensor(1).to(normal_image.device)
-        )  # remove background
-        buffer = normal_image.detach().cpu().numpy()
-
-        return buffer
-
-    # pass if we do not use gui
-    # def register_dpg(self):
-        ### register texture
-
-        with dpg.texture_registry(show=False):
-            dpg.add_raw_texture(
-                self.W,
-                self.H,
-                self.render_buffer,
-                format=dpg.mvFormat_Float_rgb,
-                tag="_texture",
-            )
-
-        ### register window
-
-        # the rendered image, as the primary window
-        with dpg.window(
-            label="Viewer",
-            tag="_primary_window",
-            width=self.W,
-            height=self.H,
-            pos=[0, 0],
-            no_move=True,
-            no_title_bar=True,
-            no_scrollbar=True,
-        ):
-            dpg.add_image("_texture")
-
-        # dpg.set_primary_window("_primary_window", True)
-
-        # control window
-        with dpg.window(
-            label="Control",
-            tag="_control_window",
-            width=600,
-            height=self.H,
-            pos=[self.W, 0],
-            no_move=True,
-            no_title_bar=True,
-        ):
-            # button theme
-            with dpg.theme() as theme_button:
-                with dpg.theme_component(dpg.mvButton):
-                    dpg.add_theme_color(dpg.mvThemeCol_Button, (23, 3, 18))
-                    dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (51, 3, 47))
-                    dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (83, 18, 83))
-                    dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 5)
-                    dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 3, 3)
-
-            # save image
-            def callback_save_image(sender, app_data):
-                image = (self.render_buffer * 255).astype(np.uint8)
-                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-                cv2.imwrite(self.save_image_path, image)
-                print(f"[INFO] write image to {self.save_image_path}")
-
-            def callback_set_save_image_path(sender, app_data):
-                self.save_image_path = app_data
-
-            with dpg.group(horizontal=True):
-                dpg.add_button(
-                    label="save image",
-                    tag="_button_save_image",
-                    callback=callback_save_image,
-                )
-                dpg.bind_item_theme("_button_save_image", theme_button)
-
-                dpg.add_input_text(
-                    label="",
-                    default_value=self.save_image_path,
-                    callback=callback_set_save_image_path,
-                )
-
-            # save json
-            def callback_save_json(sender, app_data):
-                self.skel.write_json(self.save_json_path)
-                print(f"[INFO] write json to {self.save_json_path}")
-
-            def callback_set_save_json_path(sender, app_data):
-                self.save_json_path = app_data
-
-            with dpg.group(horizontal=True):
-                dpg.add_button(
-                    label="save json",
-                    tag="_button_save_json",
-                    callback=callback_save_json,
-                )
-                dpg.bind_item_theme("_button_save_json", theme_button)
-
-                dpg.add_input_text(
-                    label="",
-                    default_value=self.save_json_path,
-                    callback=callback_set_save_json_path,
-                )
-
-            # pan/scale mode
-            def callback_set_pan_scale_mode(sender, app_data):
-                self.pan_scale_skel = not self.pan_scale_skel
-
-            dpg.add_checkbox(
-                label="pan/scale skeleton",
-                default_value=self.pan_scale_skel,
-                callback=callback_set_pan_scale_mode,
-            )
-
-            # backview mode
-            def callback_set_occlusion_mode(sender, app_data):
-                self.enable_occlusion = not self.enable_occlusion
-                self.need_update = True
-
-            dpg.add_checkbox(
-                label="use occlusion",
-                default_value=self.enable_occlusion,
-                callback=callback_set_occlusion_mode,
-            )
-
-            # fov slider
-            def callback_set_fovy(sender, app_data):
-                self.cam.fovy = app_data
-                self.need_update = True
-
-            dpg.add_slider_int(
-                label="FoV (vertical)",
-                min_value=1,
-                max_value=120,
-                format="%d deg",
-                default_value=self.cam.fovy,
-                callback=callback_set_fovy,
-            )
-
-            # mode combo
-            def callback_change_mode(sender, app_data):
-                self.mode = app_data
-                self.need_update = True
-
-            dpg.add_combo(
-                ("gs", "mesh", "skel"),
-                label="mode",
-                default_value=self.mode,
-                callback=callback_change_mode,
-            )
-
-            # play the sequence
-            def callback_play(sender, app_data):
-                if self.playing:
-                    self.playing = False
-                    dpg.configure_item("_button_play", label="start")
-                else:
-                    self.playing = True
-                    dpg.configure_item("_button_play", label="stop")
-
-            dpg.add_button(label="start", tag="_button_play", callback=callback_play)
-            dpg.bind_item_theme("_button_play", theme_button)
-
-            # SMPLX pose editing
-            with dpg.collapsing_header(label="SMPLX body_pose", default_open=False):
-
-                def callback_update_body_pose(sender, app_data, user_data):
-                    self.skel.body_pose[user_data] = app_data[:3]
-                    self.skel.load_smplx(self.opt.smplx_path)
-                    self.need_update = True
-
-                for i in range(self.skel.body_pose.shape[0]):
-                    dpg.add_input_floatx(
-                        default_value=self.skel.body_pose[i],
-                        size=3,
-                        width=200,
-                        format="%.3f",
-                        on_enter=False,
-                        callback=callback_update_body_pose,
-                        user_data=i,
-                    )
-
-            with dpg.collapsing_header(
-                label="SMPLX left_hand_pose", default_open=False
-            ):
-
-                def callback_update_left_hand_pose(sender, app_data, user_data):
-                    self.skel.left_hand_pose[user_data] = app_data[:3]
-                    self.skel.load_smplx(self.opt.smplx_path)
-                    self.need_update = True
-
-                for i in range(self.skel.left_hand_pose.shape[0]):
-                    dpg.add_input_floatx(
-                        default_value=self.skel.left_hand_pose[i],
-                        size=3,
-                        width=200,
-                        format="%.3f",
-                        on_enter=False,
-                        callback=callback_update_left_hand_pose,
-                        user_data=i,
-                    )
-
-            with dpg.collapsing_header(
-                label="SMPLX right_hand_pose", default_open=False
-            ):
-
-                def callback_update_right_hand_pose(sender, app_data, user_data):
-                    self.skel.right_hand_pose[user_data] = app_data[:3]
-                    self.skel.load_smplx(self.opt.smplx_path)
-                    self.need_update = True
-
-                for i in range(self.skel.right_hand_pose.shape[0]):
-                    dpg.add_input_floatx(
-                        default_value=self.skel.right_hand_pose[i],
-                        size=3,
-                        width=200,
-                        format="%.3f",
-                        on_enter=False,
-                        callback=callback_update_right_hand_pose,
-                        user_data=i,
-                    )
-
-        ### register camera handler
-
-        def callback_camera_drag_rotate(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-
-            dx = app_data[1]
-            dy = app_data[2]
-
-            self.cam.orbit(dx, dy)
-            self.need_update = True
-
-        def callback_camera_wheel_scale(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-
-            delta = app_data
-
-            if self.pan_scale_skel:
-                self.skel.scale(delta)
-            else:
-                self.cam.scale(delta)
-
-            self.need_update = True
-
-        def callback_camera_drag_pan(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-
-            dx = app_data[1]
-            dy = app_data[2]
-
-            if self.pan_scale_skel:
-                self.skel.pan(self.cam.rot, dx, dy)
-            else:
-                self.cam.pan(dx, dy)
-
-            self.need_update = True
-
-        def callback_set_mouse_loc(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-
-            # just the pixel coordinate in image
-            self.mouse_loc = np.array(app_data)
-
-        def callback_skel_select(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-
-            # determine the selected keypoint from mouse_loc
-            if self.points2D is None:
-                return  # not prepared
-
-            dist = np.linalg.norm(self.points2D - self.mouse_loc, axis=1)  # [18]
-            self.point_idx = np.argmin(dist)
-
-        def callback_skel_drag(sender, app_data):
-            if not dpg.is_item_focused("_primary_window"):
-                return
-
-            # 2D to 3D delta
-            dx = app_data[1]
-            dy = app_data[2]
-
-            self.skel.points3D[self.point_idx, :3] += (
-                self.drag_sensitivity
-                * self.cam.rot.as_matrix()[:3, :3]
-                @ np.array([dx, -dy, 0])
-            )
-
-            self.need_update = True
-
-        with dpg.handler_registry():
-            dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Left, callback=callback_camera_drag_rotate)
-            dpg.add_mouse_wheel_handler(callback=callback_camera_wheel_scale)
-            dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Middle, callback=callback_camera_drag_pan)
-
-            # for skeleton editing
-            dpg.add_mouse_move_handler(callback=callback_set_mouse_loc)
-            dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Right, callback=callback_skel_select)
-            dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Right, callback=callback_skel_drag)
-
-        dpg.create_viewport(title="pose viewer", resizable=False, width=self.W + 600, height=self.H)
-
-        ### global theme
-        with dpg.theme() as theme_no_padding:
-            with dpg.theme_component(dpg.mvAll):
-                # set all padding to 0 to avoid scroll bar
-                dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 0, 0, category=dpg.mvThemeCat_Core)
-                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 0, 0, category=dpg.mvThemeCat_Core)
-                dpg.add_theme_style(dpg.mvStyleVar_CellPadding, 0, 0, category=dpg.mvThemeCat_Core)
-
-        dpg.bind_item_theme("_primary_window", theme_no_padding)
-        dpg.focus_item("_primary_window")
-
-        dpg.setup_dearpygui()
-
-        # dpg.show_metrics()
-
-        dpg.show_viewport()
-
-    # def render(self):
-        assert self.gui
-        while dpg.is_dearpygui_running():
-            self.step()
-            dpg.render_dearpygui_frame()
-
+    # def render_mesh_normal(self, mvp, H, W, vertices, faces):
+    #     mvp = torch.from_numpy(mvp.astype(np.float32)).cuda()
+    #     vertices = torch.from_numpy(vertices.astype(np.float32)).cuda()
+    #     faces = torch.from_numpy(faces.astype(np.int32)).cuda()
+
+    #     vertices_clip = (
+    #         torch.matmul(
+    #             F.pad(vertices, pad=(0, 1), mode="constant", value=1.0),
+    #             torch.transpose(mvp, 0, 1),
+    #         )
+    #         .float()
+    #         .unsqueeze(0)
+    #     )  # [1, N, 4]
+    #     rast, _ = dr.rasterize(self.glctx, vertices_clip, faces, (H, W))
+
+    #     i0, i1, i2 = faces[:, 0].long(), faces[:, 1].long(), faces[:, 2].long()
+    #     v0, v1, v2 = vertices[i0, :], vertices[i1, :], vertices[i2, :]
+
+    #     face_normals = torch.cross(v1 - v0, v2 - v0)
+
+    #     # Splat face normals to vertices
+    #     vn = torch.zeros_like(vertices)
+    #     vn.scatter_add_(0, i0[:, None].repeat(1, 3), face_normals)
+    #     vn.scatter_add_(0, i1[:, None].repeat(1, 3), face_normals)
+    #     vn.scatter_add_(0, i2[:, None].repeat(1, 3), face_normals)
+
+    #     # Normalize, replace zero (degenerated) normals with some default value
+    #     vn = torch.where(
+    #         dot(vn, vn) > 1e-20,
+    #         vn,
+    #         torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32, device=vn.device),
+    #     )
+    #     vn = safe_normalize(vn)
+
+    #     normal, _ = dr.interpolate(vn.unsqueeze(0).contiguous(), rast, faces)
+    #     normal = safe_normalize(normal)
+
+    #     normal_image = (normal[0] + 1) / 2
+    #     normal_image = torch.where(
+    #         rast[..., 3:] > 0, normal_image, torch.tensor(1).to(normal_image.device)
+    #     )  # remove background
+    #     buffer = normal_image.detach().cpu().numpy()
+
+    #     return buffer
+
+
+# python animation.py --ply "/data/vdc/tangzichen/hgs/exps/Audrey_Hepburn_wearing_a_tailored_blazer,_a_shirt_underneath,_straight-cut_trousers,_and_low-heeled_shoes.@20241120-123824/save/last.ply" --motion "content/Aeroplane_FW_part9.npz" --play --rotate
+# python animation.py --ply "/data/vdc/tangzichen/hgs/exps/Donald_Trump_wearing_a_suit,_chinos,_and_loafers.@20241120-123637/save/last.ply" --motion "content/Aeroplane_FW_part9.npz" --play
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ply", type=str, help="path to gaussians ply")
-    parser.add_argument("--motion", type=str, help="path to motion file")
-    parser.add_argument("--smplx_path", type=str, default="/data/vdc/tangzichen", help="path to models folder (contains smplx/)")
+    parser.add_argument("--ply", type=str, default="/root/autodl-tmp/GaussianIP/data/humans/audrey.ply", help="path to gaussians ply")
+    parser.add_argument("--motion", type=str, default="/root/autodl-tmp/GaussianIP/content/Aeroplane_FW_part9.npz", help="path to motion file")
+    parser.add_argument("--smplx_path", type=str, default="/root/autodl-tmp", help="path to models folder (contains smplx/)")
     parser.add_argument("--save", type=str, default="videos", help="path to render and save video")
     parser.add_argument("--rotate", action="store_true", help="rotate during rendering")
     parser.add_argument("--play", action="store_true", help="play the motion during rendering")
@@ -928,7 +615,9 @@ if __name__ == "__main__":
 
     if not opt.gui:
         os.makedirs(opt.save, exist_ok=True)
+
         import imageio
+
         images = []
 
         elevation = 0
@@ -944,6 +633,10 @@ if __name__ == "__main__":
                 gui.need_update = True
 
             gui.step()
+
+            # if opt.gui:
+            #     dpg.render_dearpygui_frame()
+
             image = (gui.render_buffer * 255).astype(np.uint8)
             images.append(image)
 
